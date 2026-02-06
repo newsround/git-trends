@@ -7,7 +7,12 @@ import { LANGUAGES } from "@/lib/languages"
 import { RepoCard, RepoCardSkeleton } from "@/components/repo-card"
 import { Flame, Calendar, CalendarDays, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react"
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+const fetcher = (url: string) =>
+  fetch(url, {
+    headers: {
+      Accept: "application/vnd.github.v3+json",
+    },
+  }).then((res) => res.json())
 
 const TIME_RANGES = [
   { value: "daily", label: "Today", icon: Flame },
@@ -15,16 +20,49 @@ const TIME_RANGES = [
   { value: "monthly", label: "This Month", icon: CalendarDays },
 ]
 
+function getDateSince(range: string): string {
+  const now = new Date()
+  switch (range) {
+    case "weekly":
+      now.setDate(now.getDate() - 7)
+      break
+    case "monthly":
+      now.setMonth(now.getMonth() - 1)
+      break
+    default:
+      now.setDate(now.getDate() - 1)
+      break
+  }
+  return now.toISOString().split("T")[0]
+}
+
 export function TrendingList() {
   const [range, setRange] = useState("daily")
   const [language, setLanguage] = useState("")
   const [page, setPage] = useState(1)
 
-  const params = new URLSearchParams({ range, page: String(page) })
-  if (language) params.set("language", language)
+  const dateSince = getDateSince(range)
+  let query = `created:>${dateSince}`
+  if (language) {
+    query += ` language:${language}`
+  }
+
+  const sortMap: Record<string, string> = {
+    daily: "stars",
+    weekly: "stars",
+    monthly: "stars",
+  }
+
+  const params = new URLSearchParams({
+    q: query,
+    sort: sortMap[range] || "stars",
+    order: "desc",
+    per_page: "25",
+    page: String(page),
+  })
 
   const { data, error, isLoading } = useSWR(
-    `/api/trending?${params.toString()}`,
+    `https://api.github.com/search/repositories?${params.toString()}`,
     fetcher,
     { revalidateOnFocus: false, keepPreviousData: true }
   )

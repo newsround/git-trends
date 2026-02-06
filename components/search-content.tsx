@@ -8,7 +8,12 @@ import { LANGUAGES } from "@/lib/languages"
 import { RepoCard, RepoCardSkeleton } from "@/components/repo-card"
 import { Search, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react"
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+const fetcher = (url: string) =>
+  fetch(url, {
+    headers: {
+      Accept: "application/vnd.github.v3+json",
+    },
+  }).then((res) => res.json())
 
 const SORT_OPTIONS = [
   { value: "stars", label: "Stars" },
@@ -24,11 +29,23 @@ export function SearchContent() {
   const [sort, setSort] = useState("stars")
   const [page, setPage] = useState(1)
 
-  const params = new URLSearchParams({ q: submittedQuery, sort, page: String(page) })
-  if (language) params.set("language", language)
+  let fullQuery = submittedQuery
+  if (language) {
+    fullQuery += ` language:${language}`
+  }
+
+  const params = new URLSearchParams({
+    q: fullQuery,
+    sort,
+    order: "desc",
+    per_page: "25",
+    page: String(page),
+  })
 
   const { data, error, isLoading } = useSWR(
-    submittedQuery ? `/api/search?${params.toString()}` : null,
+    submittedQuery
+      ? `https://api.github.com/search/repositories?${params.toString()}`
+      : null,
     fetcher,
     { revalidateOnFocus: false, keepPreviousData: true }
   )
